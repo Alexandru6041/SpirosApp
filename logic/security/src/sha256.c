@@ -108,7 +108,7 @@ void sha256(const uint8_t *data, size_t len, uint8_t out[32]) {
             
             a = t1 + t2;
 
-        }   
+        }    
         h[0] += a;
         h[1] += b;
         h[2] += c;
