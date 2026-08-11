@@ -18,16 +18,15 @@ size_t base64_encode(const uint8_t *data, size_t length, char *out) {
     }   
 
     size_t remaining = length - i;
-
     if(remaining == 1) {
-        uint32_t n = data[i] <<16;
+        uint32_t n = data[i] << 16;
         out[j++] = B64[(n >> 18) & 0x3F];    
         out[j++] = B64[(n >> 12) & 0x3F];    
         out[j++] = '=';    
         out[j++] = '=';     
     }
-    else {
-        uint32_t n = (data[i] <<16) | (data[i + 1] << 8);
+    else if(remaining == 2){
+        uint32_t n = (data[i] << 16) | (data[i + 1] << 8);
         out[j++] = B64[(n >> 18) & 0x3F];    
         out[j++] = B64[(n >> 12) & 0x3F];    
         out[j++] = B64[(n >> 6) & 0x3F];    
