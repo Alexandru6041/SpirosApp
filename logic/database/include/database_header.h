@@ -29,6 +29,7 @@ typedef struct {
 
 DatabaseResult *db_query(int sock, const char *sql);
 DatabaseResult *database_query(int sock, const char *sql);
+DatabaseResult *database_query_params(int sock, const char *sql, const char **params, int nparams);
 
 void database_result_free(DatabaseResult *res);
 

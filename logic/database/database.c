@@ -250,6 +250,166 @@ DatabaseResult *database_query(int sock, const char *sql) {
     }
 }
 
+DatabaseResult *database_query_params(int sock, const char *sql, const char **params, int nparams) {
+    DatabaseResult *res = calloc(1, sizeof(DatabaseResult));
+    if(!res)
+        return NULL;
+    
+    size_t est = 512 + strlen(sql);
+
+    for(int i = 0; i < nparams; i++) {
+        if(params[i])
+            est += strlen(params[i]) + 8;
+    }
+    uint8_t *out = malloc(est);
+
+    if(!out) {
+        free(res);
+        return NULL;
+    }
+
+    int pos = 0;
+    out[pos++] = 'P';
+    int parse_position_length = pos;
+    pos += 4;
+    out[pos++] = '\0';
+    size_t sql_length = strlen(sql) + 1;
+
+    memcpy(out + pos, sql, sql_length);
+    pos += (int)sql_length;
+
+    out[pos++] = 0;
+    out[pos++] = 0;
+    ///backfill the length
+    {
+        int lp = parse_position_length;
+        write_big_endian32(out, &lp, (int) est, (unsigned int) (pos - parse_position_length));
+    }
+
+    ///Binding the values to $1 $2 etc
+    out[pos++] = 'B';
+    int bind_length_pos = pos;
+    pos+=4;
+    out[pos++] = '\0';
+    out[pos++] = '\0';
+
+    out[pos++] = 0, out[pos++] = 0; ///text format
+
+    out[pos++] = (uint8_t) ((nparams >> 8) & 0xFF); ///sending in big endian
+    out[pos++] = (uint8_t) (nparams & 0xFF);
+
+    for(int i = 0; i < nparams; i++) {
+        if(params[i] == NULL) {
+            int lp = pos;
+            write_big_endian32(out, &lp, (int) est, (unsigned int) -1);
+            pos+=4;
+        } else {
+            int val_len = (int) strlen(params[i]);  
+            int lp = pos;
+            write_big_endian32(out, &lp, (int) est, (unsigned int) val_len);
+            pos += 4;
+            memcpy(out + pos, params[i], (size_t) val_len);
+            pos += val_len;      
+        }
+    }
+
+    out[pos++] = 0;
+    out[pos++] = 0;
+    {
+        int lp = bind_length_pos; write_big_endian32(out, &lp, (int) est, (unsigned int) (pos - bind_length_pos));
+    }
+
+    ///Describe row and data columns
+    out[pos++] = 'D';
+    int dec_length_pos = pos;
+    pos += 4;
+    out[pos++] = 'P';
+    out[pos++] = '\0';
+    {
+        int lp = dec_length_pos;
+        write_big_endian32(out, &lp, (int) est, (unsigned int) (pos - dec_length_pos));
+    }
+
+
+    /// Execute
+    out[pos++] = 'E';
+    int execute_length_pos = pos;
+    pos += 4;
+
+    out[pos++] = '\0';
+    out[pos++] = 0, out[pos++] = 0, out[pos++] = 0, out[pos++] = 0;
+
+    {
+        int lp = execute_length_pos;
+        write_big_endian32(out, &lp, (int) est, (unsigned int) (pos - execute_length_pos));
+    } 
+
+
+    /// Sync
+    out[pos++] = 'S';
+    {
+        int lp = pos;
+        write_big_endian32(out, &lp, (int) est, 4);
+    }
+
+    pos += 4;
+
+    ssize_t sent = send(sock, out, (size_t) pos, 0);
+    free(out);
+    if(sent != pos) {
+        res -> error = strdup("[ERROR]: Failed to send parametrized query.\n");
+        return res;
+    }
+
+    while(1) {
+        uint8_t type;
+        if(read_exact(sock, &type, 1) < 0) {
+            res -> error = strdup("[ERROR]: Connection Lost");
+            return res;
+        }
+        uint8_t lenbuf[4];
+        read_exact(sock, lenbuf, 4);
+        
+        int message_length = read_big_endian32(lenbuf);
+        int payload_length = message_length - 4;
+
+        uint8_t *payload = NULL;
+        if(payload_length > 0) {
+            payload = malloc((size_t) payload_length);
+            if(!payload) {
+                res -> error = strdup("[ERROR]: Out of memory.\n");
+                return res;
+            }
+            
+            read_exact(sock, payload, (size_t) payload_length);
+        }
+
+        if(type == '1') {
+            ///Status OK, Parsing is complete
+        } else if (type == '2') {
+            /// Bind complete Status OK
+        } else if(type == 'T') {
+            parse_row_description(payload, res);
+        }  else if(type == 'D') {
+            parse_data_row(payload, res);
+        } else if(type == 'C') {
+            ///Command is complete ignore;
+        } else if(type == 'Z') {
+            if(payload && payload_length >= 1){
+                res -> status = (char)payload[0];
+            }
+            free(payload);
+            return res;
+        } else if(type == 'E') {
+            if(payload) {
+                res -> error = parse_error_response(payload, payload_length);
+            }
+        }
+
+        free(payload);
+
+    }
+}
 
 void database_result_free(DatabaseResult *res) {
     if(! res) {
