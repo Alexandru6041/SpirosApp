@@ -197,7 +197,9 @@ DatabaseResult *db_query(int sock, const char *sql) {
     return NULL;
 }
 
-DatabaseResult *database_query(int sock, const char *sql) {
+DatabaseResult *database_query(DatabaseConnection *conn, const char *sql) {
+    int sock = conn -> sock;
+    
     DatabaseResult *res = calloc(1, sizeof(DatabaseResult));
     if(!res)
         return NULL;
@@ -238,7 +240,7 @@ DatabaseResult *database_query(int sock, const char *sql) {
             ///pass, Querry Complete
         } else if(type == 'Z') {
             if(payload && payload_length >= 1)
-                res -> status = (char) payload[0];
+                res -> status = (char) payload[0], conn -> status = (char) payload[0];
             free(payload);
             return res;
         }  else if(type == 'E') {
@@ -250,7 +252,9 @@ DatabaseResult *database_query(int sock, const char *sql) {
     }
 }
 
-DatabaseResult *database_query_params(int sock, const char *sql, const char **params, int nparams) {
+DatabaseResult *database_query_params(DatabaseConnection *conn, const char *sql, const char **params, int nparams) {
+    int sock = conn -> sock;
+
     DatabaseResult *res = calloc(1, sizeof(DatabaseResult));
     if(!res)
         return NULL;
@@ -396,7 +400,7 @@ DatabaseResult *database_query_params(int sock, const char *sql, const char **pa
             ///Command is complete ignore;
         } else if(type == 'Z') {
             if(payload && payload_length >= 1){
-                res -> status = (char)payload[0];
+                res -> status = (char)payload[0], conn -> status = (char) payload[0];
             }
             free(payload);
             return res;
