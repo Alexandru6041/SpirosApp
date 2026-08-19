@@ -10,7 +10,7 @@ int read_password(char *buf, size_t bufsize) {
     struct termios old_terminal, new_terminal;
     DatabaseConfig cfg;
 
-    if(load_config("database.conf", &cfg) != 0)
+    if(load_config(CONFIG_PATH, &cfg) != 0)
         return 1;
     printf("Password for database %s on %s:%hu: ", cfg.dbname, cfg.host, cfg.port);
     fflush(stdout);
