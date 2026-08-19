@@ -132,3 +132,13 @@ DatabaseConnection *db_connect(const char *config_path, const char *password) {
     return conn;
 }
 
+void db_disconnect(DatabaseConnection *conn) {
+    if(!conn)
+        return ;
+    if(conn -> connected) {
+        uint8_t term[5] = {'X', 0, 0, 0, 4}; ///Sending 'X' terminate signal to POSTGRES.
+        send(conn -> sock, term, 5, 0);
+        close(conn -> sock); 
+    }
+    free(conn);
+}
