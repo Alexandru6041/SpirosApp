@@ -40,7 +40,7 @@ int main(void) {
         "",
     };
 
-    DatabaseResult *res = database_query_params(conn -> sock, "", parameters, 0);//  inserting querry here for testing
+    DatabaseResult *res = database_query_params(conn, "", parameters, 1);//  inserting querry here for testing
     if(res -> error) {
         fprintf(stderr, "[QUERY] %s\n", res -> error);
     } else {
@@ -56,7 +56,7 @@ int main(void) {
         }
     }
     database_result_free(res);
-
-    close(conn -> sock);
-
+    db_disconnect(conn);
+    
+    return 0;
 }

@@ -190,13 +190,6 @@ int wait_for_read(int sock) {
     }   
 }
 
-DatabaseResult *db_query(int sock, const char *sql) {
-    (void) sock;
-    (void) sql;
-
-    return NULL;
-}
-
 DatabaseResult *database_query(DatabaseConnection *conn, const char *sql) {
     int sock = conn -> sock;
     

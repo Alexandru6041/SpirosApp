@@ -40,7 +40,7 @@ extern "C" {
 
     DatabaseResult *db_query(DatabaseConnection *conn, const char *sql);
     DatabaseResult *database_query(DatabaseConnection *conn, const char *sql);
-    DatabaseResult *database_query_params(int sock, const char *sql, const char **params, int nparams);
+    DatabaseResult *database_query_params(DatabaseConnection *conn, const char *sql, const char **params, int nparams);
 
     void database_result_free(DatabaseResult *res);
     void db_disconnect(DatabaseConnection *conn);
